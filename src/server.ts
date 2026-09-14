@@ -126,6 +126,145 @@ const searchCatalogInputSchema = z.object({
     .describe("The catalog object containing the search parameters. All parameters are wrapped in a catalog object. Refer to the UCP catalog search spec for the complete schema.")
 });
 
+const lookupCatalogInputSchema = z.object({
+  meta: z
+    .object({
+      "ucp-agent": z.object({
+        profile: z
+          .string()
+          .url()
+          .describe("The URI to your agent's UCP profile for capability negotiation.")
+      })
+    })
+    .describe("Request metadata. You must include ucp-agent.profile."),
+  catalog: z
+    .object({
+      ids: z
+        .array(z.string())
+        .min(1)
+        .max(50)
+        .describe("Array of product or variant identifiers (1 to 50). Accepts gid://shopify/p/{upid}, gid://shopify/ProductVariant/{id}, and http or https Shopify product URLs. Multiple IDs that resolve to the same product are grouped into a single product in the response."),
+      filters: z
+        .object({
+          available: z
+            .boolean()
+            .describe("Filter by availability. Defaults to true (only sale-ready items). Set to false to include unavailable items."),
+          ships_to: z
+            .object({
+              country: z.string().optional(),
+              region: z.string().optional(),
+              postal_code: z.string().optional()
+            })
+            .describe("Filter to products that ship to a given location. Accepts country, region, and postal_code."),
+          ships_from: z
+            .array(
+              z.object({
+                country: z.string().describe("Merchant origin country (ISO 3166-1 alpha-2).")
+              })
+            )
+            .describe("Filter by merchant origin country. Each entry accepts country (ISO 3166-1 alpha-2). Multiple entries use OR logic. Digital products that don't require shipping can still match this filter."),
+          condition: z
+            .array(z.string())
+            .describe("Product condition filter. Known values: \"new\", \"secondhand\". Multiple values use OR logic."),
+          shops: z
+            .array(z.string())
+            .describe("Filter to specific shops. Accepts an array of shop GIDs, for example gid://shopify/Shop/987654321. You can pass up to 1000 shop IDs per request.")
+        })
+        .optional(),
+      context: z
+        .object({
+          address_country: z.string().optional(),
+          address_region: z.string().optional(),
+          postal_code: z.string().optional(),
+          language: z.string().optional(),
+          currency: z.string().optional(),
+          intent: z.string().optional()
+        })
+        .describe("Buyer context for localization (address_country, address_region, postal_code, language, currency, and intent).")
+        .optional(),
+      view: z
+        .string()
+        .describe("Predefined output shape for the response. Use \"offer\" for comparison shopping. When absent, the server returns its default shape.")
+        .optional()
+    })
+    .describe("The catalog object containing the lookup parameters. All parameters are wrapped in a catalog object. Refer to the UCP catalog lookup spec for the complete schema.")
+});
+
+const getProductInputSchema = z.object({
+  meta: z
+    .object({
+      "ucp-agent": z.object({
+        profile: z
+          .string()
+          .url()
+          .describe("The URI to your agent's UCP profile for capability negotiation.")
+      })
+    })
+    .describe("Request metadata. You must include ucp-agent.profile."),
+  catalog: z
+    .object({
+      id: z
+        .string()
+        .describe("Product or variant identifier. Accepts gid://shopify/p/{upid} or gid://shopify/ProductVariant/{id}."),
+      selected: z
+        .array(
+          z.object({
+            name: z.string().describe("The option name, e.g. \"Color\" or \"Size\"."),
+            label: z.string().describe("The option value label, e.g. \"Blue\" or \"10\".")
+          })
+        )
+        .describe("Option selections for variant narrowing. For example, [{\"name\": \"Color\", \"label\": \"Blue\"}, {\"name\": \"Size\", \"label\": \"10\"}]. The response reflects these selections in product.selected and filters the returned variants accordingly.")
+        .optional(),
+      preferences: z
+        .array(z.string())
+        .describe("Option names in relaxation priority order. When an exact match isn't available, options are dropped from the end of this list first. For example, [\"Color\", \"Size\"] drops Size before Color.")
+        .optional(),
+      filters: z
+        .object({
+          ships_to: z
+            .object({
+              country: z.string().optional(),
+              region: z.string().optional(),
+              postal_code: z.string().optional()
+            })
+            .describe("Filter to products that ship to a given location. Accepts country, region, and postal_code."),
+          ships_from: z
+            .array(
+              z.object({
+                country: z.string().describe("Merchant origin country (ISO 3166-1 alpha-2).")
+              })
+            )
+            .describe("Filter by merchant origin country. Each entry accepts country (ISO 3166-1 alpha-2). Multiple entries use OR logic. Digital products that don't require shipping can still match this filter."),
+          available: z
+            .boolean()
+            .describe("Filter by availability. Defaults to true (only sale-ready items). Set to false to include unavailable items."),
+          condition: z
+            .array(z.string())
+            .describe("Product condition filter. Known values: \"new\", \"secondhand\". Multiple values use OR logic."),
+          shops: z
+            .array(z.string())
+            .describe("Filter to specific shops. Accepts an array of shop GIDs, for example gid://shopify/Shop/987654321. You can pass up to 1000 shop IDs per request.")
+        })
+        .optional(),
+      context: z
+        .object({
+          address_country: z.string().optional(),
+          address_region: z.string().optional(),
+          postal_code: z.string().optional(),
+          language: z.string().optional(),
+          currency: z.string().optional(),
+          intent: z.string().optional()
+        })
+        .describe("Buyer context for localization (address_country, address_region, postal_code, language, currency, and intent).")
+        .optional(),
+      view: z
+        .string()
+        .describe("Predefined output shape for the response. Use \"summary\" for a condensed product detail view. When absent, the server returns its default shape.")
+        .optional()
+    })
+    .describe("The catalog object containing the product lookup parameters. All parameters are wrapped in a catalog object. Refer to the UCP catalog lookup spec for the complete schema.")
+});
+
 function createServer() {
   const server = new McpServer({
     name: "catalog",
@@ -168,6 +307,86 @@ function createServer() {
           id: 2,
           params: {
             name: "search_catalog",
+            arguments: {
+              meta,
+              catalog
+            }
+          }
+        })
+      });
+
+      const result = await response.json() as Record<string, unknown>;
+
+      return {
+        content: [
+          {
+            text: JSON.stringify(result),
+            type: "text"
+          }
+        ],
+        structuredContent: result
+      };
+    }
+  );
+
+  server.registerTool(
+    "lookup_catalog",
+    {
+      description: "Retrieves products or variants by identifier from across all Shopify merchants. The response conforms to the UCP catalog lookup response, including products with inputs correlation on each variant and not_found messages for unresolved identifiers. Use this when you have product or variant IDs from search results or deep links, need to resolve multiple identifiers in a single request, or are validating cart items against current catalog data.",
+      inputSchema: lookupCatalogInputSchema
+    },
+    async ({ meta, catalog }: z.infer<typeof lookupCatalogInputSchema>) => {
+      const response = await fetch("https://catalog.shopify.com/api/ucp/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "tools/call",
+          id: 3,
+          params: {
+            name: "lookup_catalog",
+            arguments: {
+              meta,
+              catalog
+            }
+          }
+        })
+      });
+
+      const result = await response.json() as Record<string, unknown>;
+
+      return {
+        content: [
+          {
+            text: JSON.stringify(result),
+            type: "text"
+          }
+        ],
+        structuredContent: result
+      };
+    }
+  );
+
+  server.registerTool(
+    "get_product",
+    {
+      description: "Retrieves full details for a single product with optional variant selection. The response conforms to the UCP catalog get_product response, including product.selected reflecting effective option selections, option values with available and exists signals, and variants matching the selection. Use this when a customer has selected a product and needs full details, you need to show variant options with availability signals, or a customer is making option selections (Color, Size, and so on).",
+      inputSchema: getProductInputSchema
+    },
+    async ({ meta, catalog }: z.infer<typeof getProductInputSchema>) => {
+      const response = await fetch("https://catalog.shopify.com/api/ucp/mcp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "tools/call",
+          id: 4,
+          params: {
+            name: "get_product",
             arguments: {
               meta,
               catalog
