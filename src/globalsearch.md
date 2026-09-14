@@ -8,25 +8,6 @@
 - Header: `Accept: application/json, text/event-stream`
 - Transport requirement: the current MCP handler requires both `application/json` and `text/event-stream` in the `Accept` header
 
-## hello
-
-```bash
-curl -X POST https://globalsearch.anigok.com/mcp \
-  -H "Content-Type: application/json" \
-  -H "Accept: application/json, text/event-stream" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "hello",
-      "arguments": {
-        "name": "World"
-      }
-    }
-  }'
-```
-
 ## search_catalog
 
 ```bash
