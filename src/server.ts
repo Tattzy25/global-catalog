@@ -1,10 +1,14 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { createMcpHandler } from "agents/mcp/server";
+import globalsearchMd from "./globalsearch.md?raw";
 import { z } from "zod";
 
 const helloInputSchema = z.object({
   name: z.string().optional()
 });
+const getLlmsDocsInputSchema = z.object({});
+const getLlmsDocsInputSchema = z.object({});
+
 
 const searchCatalogInputSchema = z.object({
   meta: z
@@ -271,17 +275,17 @@ function createServer() {
     version: "1.0.0"
   });
 
-  server.registerTool(
-    "hello",
+    server.registerTool(
+    "get_llms_docs",
     {
-      description: "Returns a greeting message",
-      inputSchema: helloInputSchema
+      description: "Returns the full documentation for this server as markdown, including all available tools, parameters, curl examples, response shapes, and the Global Catalog extension reference. Call this first to understand what this server can do and how to call its tools.",
+      inputSchema: getLlmsDocsInputSchema
     },
-    async ({ name }: z.infer<typeof helloInputSchema>) => {
+    async () => {
       return {
         content: [
           {
-            text: `Hello, ${name ?? "World"}!`,
+            text: globalsearchMd,
             type: "text"
           }
         ]
