@@ -7,7 +7,6 @@ const helloInputSchema = z.object({
   name: z.string().optional()
 });
 const getLlmsDocsInputSchema = z.object({});
-const getLlmsDocsInputSchema = z.object({});
 
 
 const searchCatalogInputSchema = z.object({
