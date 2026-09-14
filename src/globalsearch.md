@@ -497,6 +497,88 @@ The following example shows a `search_catalog` response with Global Catalog exte
 }
 ```
 
+## Promoted placements
+
+Promoted placements extend `search_catalog` with an optional paid-placement flow. When you pass a `catalog_id` for a saved catalog that has promoted placements enabled, Shopify blends promoted variants into the ranked results. You earn commission on attributed purchases when buyers click through using the variant `url` exactly as provided.
+
+### How it works
+
+- Pass `catalog.catalog_id` from an affiliate-enabled saved catalog on your `search_catalog` calls.
+- Shopify determines whether to blend promoted placements into the results based on the catalog's server-managed configuration.
+- Requests without an affiliate-enabled catalog return only organic variants.
+- Callers who aren't approved receive organic variants and a `messages` note explaining they aren't authorized for promoted placements.
+
+### Identifying promoted variants
+
+Inspect each variant in the `search_catalog` response. A promoted variant includes a `placement` object. Organic variants omit it.
+
+Promoted variant:
+
+```json
+{
+  "id": "gid://shopify/ProductVariant/45012",
+  "placement": {
+    "type": "affiliate",
+    "commission": {
+      "percentage": {
+        "value": 1.5
+      }
+    }
+  }
+}
+```
+
+Organic variant:
+
+```json
+{
+  "id": "gid://shopify/ProductVariant/91823"
+}
+```
+
+| Field | Type | Description |
+| - | - | - |
+| `variants[].placement` | object | Marks the variant as a promoted placement. Present only on promoted placements. |
+| `variants[].placement.type` | string | The placement type. The well-known value is `"affiliate"`. |
+| `variants[].placement.commission` | object | Describes a merchant-provided additional commission. Present only when a merchant offers additional commission. |
+| `variants[].placement.commission.percentage.value` | number | The merchant-provided additional commission percentage, added to the base rate. |
+
+### Preserving attribution
+
+In an authorized response, all variant URLs include `shclid` and `shcgid` attribution parameters — whether the variant is promoted or organic. Unauthorized responses omit these parameters.
+
+```text
+https://{merchant_site}/products/{product_handle}?variant={v}&utm_source=shopify&utm_medium=catalog&shclid={click_id}&shcgid={catalog_id}
+```
+
+| Parameter | Description |
+| - | - |
+| `utm_source=shopify` | Identifies Shopify-sourced traffic for merchant attribution. |
+| `utm_medium=catalog` | Identifies Global Catalog traffic. |
+| `shclid` | Identifies the click for attribution. |
+| `shcgid` | Identifies the developer's catalog for attribution and payout. |
+
+Commissions are credited only when you send buyers through the variant `url` exactly as provided, with attribution parameters intact. Rerouting, masking the link behind your own domain, or altering parameters breaks attribution and disqualifies the conversion.
+
+### Commission
+
+- Base rate: 0.3% (30 bps) on attributed purchases.
+- Commission applies to every item in the attributed order that's available through the Global Catalog, not only the clicked product.
+- Conversions are attributed using a last-click methodology with a 7-day attribution window.
+- When `placement.commission` is present, the merchant-provided percentage is added to the base rate.
+
+### Disclosure
+
+When you show promoted placements:
+
+- Tell users that you may earn a commission, such as "We may earn a commission on purchases."
+- Label promoted placements so users can tell them apart from organic variants.
+- Don't bury the disclosure in a footer or privacy policy.
+- Don't make false or misleading claims about products, prices, merchants, or Shopify.
+
+These obligations include US FTC material-connection requirements and comparable advertising-transparency and sponsored-content rules in the EU, the UK, and other jurisdictions where you operate.
+
+
 ## Notes
 
 - The caller provides `meta["ucp-agent"].profile` on every call.
